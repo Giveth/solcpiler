@@ -31,7 +31,7 @@ const yargs = require('yargs')
   .option('createdir', {
     alias: 'd',
     describe: 'Create directories if needed',
-    default: 'true',
+    default: true,
     type: 'boolean',
   })
   .help()
