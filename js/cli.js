@@ -4,31 +4,38 @@ const yargs = require('yargs')
   .usage('Usage: $0 [options]')
   .option('config-file', {
     alias: 'c',
-    describe: 'Config file',
+    describe: 'JSON config file',
     type: 'string',
+    default: 'solcpiler.json'
   })
   .option('output-js-dir', {
-    describe: 'Output directory where js files will be copied. Default: ./build',
+    describe: 'Output directory for JS files',
+    default: './build',
     type: 'string',
   })
   .option('output-sol-dir', {
-    describe: 'Output directory where solidity files concatenated without includes will be copied. Default: ./build',
+    describe: 'Output directory for processed Solidity files (without includes)',
+    default: './build',
     type: 'string',
   })
   .option('solc-version', {
-    describe: 'Solidity version. Example: v0.4.12+commit.194ff033',
+    describe: 'Solidity version\nExample: v0.4.12+commit.194ff033',
     type: 'string',
   })
   .option('input', {
     alias: 'i',
-    describe: 'Input files that can be compiled. Default: ./contracts/*.sol',
-    type: 'boolean',
+    describe: 'Input files to compile',
+    // default: './contracts/*.sol',
+    type: 'string',
   })
   .option('createdir', {
-    describe: 'Create directory if not exist. Default: true. Use --no-createdir to not create a directory',
+    alias: 'd',
+    describe: 'Create directories if needed',
+    default: 'true',
     type: 'boolean',
   })
-  .help();
+  .help()
+  .argv;
 
 const api = require('./api.js');
 

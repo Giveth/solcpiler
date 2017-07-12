@@ -73,7 +73,7 @@ const optsDefault = {
   outputJsDir: 'build',
   outputSolDir: 'build',
   // solcVersion: "v0.4.12+commit.194ff033",
-  input: './contracts/*.sol',
+  // input: './contracts/*.sol',
   createdir: true,
 };
 
@@ -81,7 +81,7 @@ const runFromConfigFile = (configFile, overloadOpts, cb) => {
   readConfigFile(configFile, (err, optsFile) => {
     if (err) return cb();
     const opts = Object.assign(optsDefault, optsFile, overloadOpts);
-    // console.log(JSON.stringify(opts, null, 2));
+    if (!opts.input) return console.log('solcpiler: No input files');
     run(opts, cb);
     return null;
   });
