@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+const api = require('./api.js');
+
 const yargs = require('yargs')
   .usage('Usage: $0 [options]')
   .option('config-file', {
@@ -28,9 +30,15 @@ const yargs = require('yargs')
     describe: 'Create directory if not exist. Default: true. Use --no-createdir to not create a directory',
     type: 'boolean',
   })
-  .help();
+  .help()
+  .argv
 
-const api = require('./api.js');
+/*
+if (yargs.help === true) {
+  yargs.showHelp();
+  process.exit(0);
+}
+*/
 
 const optsCommandLine = {};
 
@@ -48,3 +56,4 @@ api.runFromConfigFile(configFile, optsCommandLine, (err) => {
     console.error("ERROR:", err);
   }
 });
+
