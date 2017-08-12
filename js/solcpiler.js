@@ -36,8 +36,6 @@ class Solcpiler {
 
       srcCode = srcCode.replace(r, '');
 
-      if (!arr) return cb(null, srcCode);
-
       async.eachSeries(arr, (l, cb2) => {
         const r2 = /import "(.*)";/;
         let importfile = r2.exec(l)[1];
@@ -52,7 +50,7 @@ class Solcpiler {
         });
       }, (err2) => {
         if (err2) return cb(err2);
-        src += `\n//File: '${file}'\n`;
+        src += `\n//File: ${file}\n`;
         src += srcCode;
         cb(null, src);
         return null;
