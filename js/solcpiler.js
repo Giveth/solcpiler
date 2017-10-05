@@ -237,8 +237,10 @@ class Solcpiler {
           }
           const abi = JSON.parse(contract.interface);
           const byteCode = contract.bytecode;
+          const runtimeByteCode = contract.runtimeBytecode;
           S += `exports.${contractName}Abi = ${JSON.stringify(abi)}\n`;
           S += `exports.${contractName}ByteCode = "0x${byteCode}"\n`;
+          S += `exports.${contractName}RuntimeByteCode = "0x${runtimeByteCode}"\n`;
         });
         S += `exports._solcVersion = "${self.useSolc.version()}"\n`;
         S += `exports._sha256 = "${currentHash}"\n`;
