@@ -24,7 +24,7 @@ const yargs = require('yargs')
   .option('input', {
     alias: 'i',
     describe: 'Input files that can be compiled. Default: ./contracts/*.sol',
-    type: 'boolean',
+    type: 'string',
   })
   .option('createdir', {
     describe: 'Create directory if not exist. Default: true. Use --no-createdir to not create a directory',
