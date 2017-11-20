@@ -1,4 +1,5 @@
 const path = require('path');
+const appRoot = require('app-root-path');
 const fs = require('fs');
 const crypto = require('crypto');
 const solc = require('solc');
@@ -40,7 +41,7 @@ class Solcpiler {
         const r2 = /import "(.*)";/;
         let importfile = r2.exec(l)[1];
 
-        importfile = path.join(path.dirname(file), importfile);
+        importfile = Solcpiler.resolveFile(path.dirname(file), importfile);
 
         self.loadSol(importfile, imported, (err2, importSrc) => {
           if (err2) return cb(err2);
@@ -73,6 +74,16 @@ class Solcpiler {
     async.setImmediate(() => {
       cb(null, srcOut);
     });
+  }
+
+  static resolveFile(baseDir, file) {
+    const importFile = path.join(baseDir, file);
+    if (fs.existsSync(importFile)) return importFile;
+
+    const npmImportFile = path.join(appRoot.path, 'node_modules', file);
+    if (fs.existsSync(npmImportFile)) return npmImportFile;
+
+    return importFile;
   }
 
   static fixErrorLines(src, _errors) {

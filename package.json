@@ -12,6 +12,7 @@
     "solcpiler": "./js/cli.js"
   },
   "dependencies": {
+    "app-root-path": "^2.0.1",
     "async": "^2.5.0",
     "glob": "^7.1.2",
     "lodash": "^4.17.4",
