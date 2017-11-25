@@ -73,9 +73,15 @@ const optsDefault = {
   outputJsDir: 'build',
   outputSolDir: 'build',
   // solcVersion: "v0.4.12+commit.194ff033",
-  input: './contracts/*.sol',
+  input: './*.sol',
   createdir: true,
 };
+
+if (fs.existsSync('./contracts')) {
+  optsDefault.input = './contracts/*.sol';
+} else if (fs.existsSync('./src')) {
+  optsDefault.input = './src/*.sol';
+}
 
 const runFromConfigFile = (configFile, overloadOpts, cb) => {
   readConfigFile(configFile, (err, optsFile) => {
