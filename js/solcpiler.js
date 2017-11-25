@@ -31,7 +31,7 @@ class Solcpiler {
       let srcCode = _srcCode;
       if (err) return cb(err);
 
-      const r = /^import "(.*)";/gm;
+      const r = /^import (['"])(.*)\1;/gm;
 
       const arr = srcCode.match(r);
 
