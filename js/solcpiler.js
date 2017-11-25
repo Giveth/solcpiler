@@ -6,6 +6,16 @@ const solc = require('solc');
 const async = require('async');
 const _ = require('lodash');
 
+
+const hashFile = (f) => {
+  const str = fs.readFileSync(f, 'utf8');
+
+  return crypto
+    .createHash('sha256')
+    .update(str, 'utf8')
+    .digest('hex');
+};
+
 class Solcpiler {
   loadSol(file, _imported, _cb) {
     const self = this;
@@ -20,13 +30,14 @@ class Solcpiler {
     }
 
     let src = '';
+    const h = hashFile(file);
 
     //    var file = path.resolve(path.join(__dirname, ".."), filename);
-    if (imported[file]) {
+    if (imported[h]) {
       return cb(null, src);
     }
 
-    imported[file] = true;
+    imported[h] = true;
     fs.readFile(file, 'utf8', (err, _srcCode) => {
       let srcCode = _srcCode;
       if (err) return cb(err);
@@ -41,7 +52,7 @@ class Solcpiler {
         const r2 = /import[\s]*(['"])(.*)\1;/;
         let importfile = r2.exec(l)[2];
 
-        importfile = Solcpiler.resolveFile(path.dirname(file), importfile);
+        importfile = Solcpiler.resolveFile(path.dirname(path.resolve(file)), importfile);
 
         self.loadSol(importfile, imported, (err2, importSrc) => {
           if (err2) return cb(err2);
@@ -51,7 +62,7 @@ class Solcpiler {
         });
       }, (err2) => {
         if (err2) return cb(err2);
-        src += `\n//File: ${file}\n`;
+        src += `\n//File: ${path.relative('.', file)}\n`;
         src += srcCode;
         cb(null, src);
         return null;
@@ -83,10 +94,10 @@ class Solcpiler {
     const npmImportFile = path.join(appRoot.path, 'node_modules', file);
     if (fs.existsSync(npmImportFile)) return npmImportFile;
 
-    const libFile = path.join(baseDir, '..', 'lib', 'src', file);
+    const libFile = path.join(baseDir, '..', 'lib', path.dirname(file), 'src', path.basename(file));
     if (fs.existsSync(libFile)) return libFile;
 
-    return null;
+    return file;
   }
 
   static fixErrorLines(src, _errors) {
@@ -137,18 +148,23 @@ class Solcpiler {
     return null;
   }
 
-  readLastHash(destFile, cb) {
+  static readLastHash(destFile, cb) {
     fs.readFile(destFile, 'utf8', (err, data) => {
       if (err) {
         cb(null, null, null);
         return;
       }
-      const r = /exports\._sha256 = '(.*)'/g.exec(data);
-      if (!r || !r[1]) {
+      const h = /exports\._sha256 = "(.*)"/g.exec(data);
+      if (!h || !h[1]) {
         cb(null, null, null);
         return;
       }
-      cb(null, r, this.useSolc.version());
+      const v = /exports\._solcVersion = "(.*)"/g.exec(data);
+      if (!v || !v[1]) {
+        cb(null, null, null);
+        return;
+      }
+      cb(null, h[1], v[1]);
     });
   }
 
@@ -203,7 +219,7 @@ class Solcpiler {
         });
       },
       (cb2) => {
-        self.readLastHash(destFile, (err, hash, version) => {
+        Solcpiler.readLastHash(destFile, (err, hash, version) => {
           if (err) return cb2(err);
           lastHash = hash;
           lastSolcVersion = version;
