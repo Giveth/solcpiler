@@ -31,15 +31,15 @@ class Solcpiler {
       let srcCode = _srcCode;
       if (err) return cb(err);
 
-      const r = /^import (['"])(.*)\1;/gm;
+      const r = /^import[\s]*(['"])(.*)\1;/gm;
 
       const arr = srcCode.match(r);
 
       srcCode = srcCode.replace(r, '');
 
       async.eachSeries(arr, (l, cb2) => {
-        const r2 = /import "(.*)";/;
-        let importfile = r2.exec(l)[1];
+        const r2 = /import[\s]*(['"])(.*)\1;/;
+        let importfile = r2.exec(l)[2];
 
         importfile = Solcpiler.resolveFile(path.dirname(file), importfile);
 
