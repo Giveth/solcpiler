@@ -32,9 +32,34 @@ const compile = (opts, cb) => {
         path.join(opts.outputJsDir, `${fileName}.sol.js`),
         path.join(opts.outputSolDir, `${fileName}_all.sol`),
         opts,
-        cb2);
+        cb2,
+      );
     }, cb);
   });
+};
+
+const copyFile = (source, target, cb) => {
+  let cbCalled = false;
+
+  const done = (err) => {
+    if (!cbCalled) {
+      cb(err);
+      cbCalled = true;
+    }
+  };
+
+  const rd = fs.createReadStream(source);
+  rd.on('error', (err) => {
+    done(err);
+  });
+  const wr = fs.createWriteStream(target);
+  wr.on('error', (err) => {
+    done(err);
+  });
+  wr.on('close', () => {
+    done();
+  });
+  rd.pipe(wr);
 };
 
 const run = (opts, cb) => {
@@ -47,6 +72,9 @@ const run = (opts, cb) => {
     },
     (cb2) => {
       compile(opts, cb2);
+    },
+    (cb2) => {
+      copyFile(path.join(__dirname, 'contracts.js'), path.join(opts.outputJsDir, 'contracts.js'), cb2);
     },
   ], cb);
 };

@@ -1,6 +1,6 @@
 {
   "name": "solcpiler",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Solidity compiler wraper to generate JS.",
   "main": "index.js",
   "scripts": {
@@ -14,6 +14,7 @@
   "dependencies": {
     "app-root-path": "^2.0.1",
     "async": "^2.5.0",
+    "eth-contract-class": "0.0.7",
     "glob": "^7.1.2",
     "lodash": "^4.17.4",
     "solc": "^0.4.19",
