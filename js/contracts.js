@@ -4,7 +4,6 @@ const generateClass = require('eth-contract-class').default;
 const contracts = {};
 fs.readdirSync(__dirname).forEach(file => {
     if ( /^.*\.sol\.js$/.test(file)) {
-        console.log(file);
         const f = require("./" + file);
         Object.keys(f).forEach((k) => {
             const res = /^(.*)Abi$/.exec(k);
