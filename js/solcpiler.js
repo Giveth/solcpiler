@@ -87,8 +87,7 @@ class Solcpiler {
     });
   }
 
-  static resolveFile(baseDir, _file) {
-    const file = _file.replace('@', '\\@');
+  static resolveFile(baseDir, file) {
     const importFile = path.join(baseDir, file);
     if (fs.existsSync(importFile)) return importFile;
 
@@ -98,7 +97,8 @@ class Solcpiler {
     const libFile = path.join(baseDir, '..', 'lib', path.dirname(file), 'src', path.basename(file));
     if (fs.existsSync(libFile)) return libFile;
 
-    console.log("-> ",importFile);
+    console.log("File not found: Search places: ");
+    console.log("direcr ",importFile);
     console.log("npm: ",npmImportFile);
     console.log("lib: ",libFile);
 
