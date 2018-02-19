@@ -91,7 +91,7 @@ class Solcpiler {
     const importFile = path.join(baseDir, file);
     if (fs.existsSync(importFile)) return importFile;
 
-    const npmImportFile = path.join(appRoot.path, 'node_modules', file);
+    const npmImportFile = require.resolve(file);
     if (fs.existsSync(npmImportFile)) return npmImportFile;
 
     const libFile = path.join(baseDir, '..', 'lib', path.dirname(file), 'src', path.basename(file));

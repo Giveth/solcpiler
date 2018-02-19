@@ -1,6 +1,6 @@
 {
   "name": "solcpiler",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Solidity compiler wraper to generate JS.",
   "main": "index.js",
   "scripts": {
