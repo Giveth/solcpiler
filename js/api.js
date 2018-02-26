@@ -28,8 +28,8 @@ const compile = (opts, cb) => {
     }
 
     const solcpiler = new Solcpiler(opts, files);
-
     solcpiler.compile();
+    cb();
   });
 };
 
