@@ -30,6 +30,16 @@ const yargs = require('yargs')
     describe: 'Create directory if not exist. Default: true. Use --no-createdir to not create a directory',
     type: 'boolean',
   })
+  .option('quiet', {
+    alias: 'q',
+    describe: 'Silence output and compiler warnings. Default: false',
+    type: 'boolean',
+  })
+  .option('verbose', {
+    alias: 'v',
+    describe: 'verbose output. Default: false',
+    type: 'boolean',
+  })
   .help()
   .argv
 
@@ -47,6 +57,8 @@ if (yargs.outputSolDir) optsCommandLine.outputSolDir = yargs.outputSolDir;
 if (yargs.solcVersion) optsCommandLine.solcVersion = yargs.solcVersion;
 if (yargs.input) optsCommandLine.input = yargs.input;
 if (yargs.createdir) optsCommandLine.createdir = yargs.createdir;
+if (yargs.quiet) optsCommandLine.quiet = yargs.quiet;
+if (yargs.verbose) optsCommandLine.verbose = yargs.verbose;
 
 const configFile = yargs.configFile || 'solcpiler.json';
 

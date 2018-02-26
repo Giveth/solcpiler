@@ -2,7 +2,7 @@ const path = require('path');
 const async = require('async');
 const glob = require('glob');
 const fs = require('fs');
-const solcpiler = require('./solcpiler.js');
+const Solcpiler = require('./solcpiler');
 
 const checkDirectoryExists = (dir, createdir, cb) => {
   fs.stat(dir, (err, stats) => {
@@ -21,20 +21,15 @@ const checkDirectoryExists = (dir, createdir, cb) => {
 };
 
 const compile = (opts, cb) => {
+  console.log(opts.input);
   glob(opts.input, {}, (err, files) => {
     if (err) {
       return;
     }
-    async.eachSeries(files, (file, cb2) => {
-      const fileName = path.basename(file, '.sol');
-      solcpiler.compile(
-        file,
-        path.join(opts.outputJsDir, `${fileName}.sol.js`),
-        path.join(opts.outputSolDir, `${fileName}_all.sol`),
-        opts,
-        cb2,
-      );
-    }, cb);
+
+    const solcpiler = new Solcpiler(opts, files);
+
+    solcpiler.compile();
   });
 };
 
@@ -100,22 +95,22 @@ const readConfigFile = (filename, cb) => {
 const optsDefault = {
   outputJsDir: 'build',
   outputSolDir: 'build',
-  // solcVersion: "v0.4.12+commit.194ff033",
   input: './*.sol',
   createdir: true,
+  quiet: false,
+  verbose: false,
 };
 
 if (fs.existsSync('./contracts')) {
-  optsDefault.input = './contracts/*.sol';
+  optsDefault.input = './contracts/**/*.sol';
 } else if (fs.existsSync('./src')) {
-  optsDefault.input = './src/*.sol';
+  optsDefault.input = './src/**/*.sol';
 }
 
 const runFromConfigFile = (configFile, overloadOpts, cb) => {
   readConfigFile(configFile, (err, optsFile) => {
     if (err) return cb();
     const opts = Object.assign(optsDefault, optsFile, overloadOpts);
-    // console.log(JSON.stringify(opts, null, 2));
     run(opts, cb);
     return null;
   });

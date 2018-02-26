@@ -1,303 +1,435 @@
-const path = require('path');
-const appRoot = require('app-root-path');
 const fs = require('fs');
-const crypto = require('crypto');
+const path = require('path');
 const solc = require('solc');
-const async = require('async');
-const _ = require('lodash');
+const crypto = require('crypto');
 
+class BreakSignal { };
 
-const hashFile = (f) => {
-  const str = fs.readFileSync(f, 'utf8');
+/** 
+ * determines the baseDir for resolving files. The baseDir is the first dir in the chain,
+ * starting from process.cwd() which contains a package.json file. If no package.json file
+ * is found, then baseDir is process.cwd()
+*/
+const resolveBaseDir = () => {
+    let dir = process.cwd();
+    const exists = () => fs.existsSync(path.join(dir, 'package.json'));
 
-  return crypto
-    .createHash('sha256')
-    .update(str, 'utf8')
-    .digest('hex');
-};
-
-class Solcpiler {
-  loadSol(file, _imported, _cb) {
-    const self = this;
-    let cb;
-    let imported;
-    if (typeof _imported === 'function') {
-      cb = _imported;
-      imported = {};
-    } else {
-      imported = _imported;
-      cb = _cb;
+    while (!exists()) {
+        const split = dir.split(path.sep);
+        spilt.pop()
+        dir = split.join(path.sep);
     }
 
-    let src = '';
-    const h = hashFile(file);
-
-    //    var file = path.resolve(path.join(__dirname, ".."), filename);
-    if (imported[h]) {
-      return cb(null, src);
-    }
-
-    imported[h] = true;
-    fs.readFile(file, 'utf8', (err, _srcCode) => {
-      let srcCode = _srcCode;
-      if (err) return cb(err);
-
-      const r = /^import[\s]*(['"])(.*)\1;/gm;
-
-      const arr = srcCode.match(r);
-
-      srcCode = srcCode.replace(r, '');
-
-      async.eachSeries(arr, (l, cb2) => {
-        const r2 = /import[\s]*(['"])(.*)\1;/;
-        let importfile = r2.exec(l)[2];
-
-        importfile = Solcpiler.resolveFile(path.dirname(path.resolve(file)), importfile);
-
-        self.loadSol(importfile, imported, (err2, importSrc) => {
-          if (err2) return cb(err2);
-          src += importSrc;
-          cb2();
-          return null;
-        });
-      }, (err2) => {
-        if (err2) return cb(err2);
-        src += `\n//File: ${path.relative('.', file)}\n`;
-        src += srcCode;
-        cb(null, src);
-        return null;
-      });
-      return null;
-    });
-    return null;
-  }
-
-  static applyConstants(src, opts, cb) {
-    let srcOut = src;
-
-    _.each(opts, (value, param) => {
-      const rule = new RegExp(`constant ${param} = (.*);`, 'gm');
-      const replacedText = `constant ${param} = ${value};`;
-
-      srcOut = srcOut.replace(rule, replacedText);
-    });
-
-    async.setImmediate(() => {
-      cb(null, srcOut);
-    });
-  }
-
-  static resolveFile(baseDir, file) {
-    const importFile = path.join(baseDir, file);
-    if (fs.existsSync(importFile)) return importFile;
-
-    let npmImportFile;
-    if (require.resolve.path) {
-      npmImportFile = require.resolve(file, { paths: [process.cwd()] });
-      if (fs.existsSync(npmImportFile)) return npmImportFile;
-    } else {
-      npmImportFile = path.join(process.cwd(), 'node_modules', file);
-      if (fs.existsSync(npmImportFile)) return npmImportFile;
-    }
-
-    const libFile = path.join(baseDir, '..', 'lib', path.dirname(file), 'src', path.basename(file));
-    if (fs.existsSync(libFile)) return libFile;
-
-    console.log("File not found: Search places: ");
-    console.log("direcr ",importFile);
-    console.log("npm: ",npmImportFile);
-    console.log("lib: ",libFile);
-
-    return file;
-  }
-
-  static fixErrorLines(src, _errors) {
-    const errors = _errors;
-    const lines = src.split('\n');
-    _.each(errors, (error, idx) => {
-      const rErrPos = new RegExp(':([0-9]+):([0-9]+):');
-      const errPos = rErrPos.exec(error);
-      const lineNum = errPos ? parseInt(errPos[1], 10) - 1 : -1;
-      let found = false;
-      let offset = 1;
-      const rFile = new RegExp('//File: (.*)', '');
-      while ((!found) && (offset <= lineNum)) {
-        const fileInfo = rFile.exec(lines[lineNum - offset]);
-        if (fileInfo) {
-          errors[idx] = error.replace(rErrPos, `${fileInfo[1]} :${offset}:${errPos[2]}`);
-          found = true;
-        } else {
-          offset += 1;
-        }
-      }
-    });
-  }
-
-  setSolidityVersion(version, cb) {
-    if (version) {
-      solc.loadRemoteVersion(version, (err, _solcV) => {
-        if (err) return cb(err);
-        this.useSolc = _solcV;
-        cb();
-        return null;
-      });
-    } else {
-      this.useSolc = solc;
-      async.setImmediate(cb);
-    }
-  }
-
-  solCompile(src, cb) {
-    const result = this.useSolc.compile(src, 1);
-    if (Object.keys(result.contracts).length === 0) {
-      Solcpiler.fixErrorLines(src, result.errors);
-      return cb(result.errors);
-    }
-    async.setImmediate(() => {
-      cb(null, result.contracts);
-    });
-    return null;
-  }
-
-  static readLastHash(destFile, cb) {
-    fs.readFile(destFile, 'utf8', (err, data) => {
-      if (err) {
-        cb(null, null, null);
-        return;
-      }
-      const h = /exports\._sha256 = "(.*)"/g.exec(data);
-      if (!h || !h[1]) {
-        cb(null, null, null);
-        return;
-      }
-      const v = /exports\._solcVersion = "(.*)"/g.exec(data);
-      if (!v || !v[1]) {
-        cb(null, null, null);
-        return;
-      }
-      cb(null, h[1], v[1]);
-    });
-  }
-
-  static calcCurrentHash(src, cb) {
-    const hash = crypto.createHash('sha256');
-
-    hash.update(src);
-
-    const r = hash.digest('hex');
-    cb(null, `0x${r}`);
-    return null;
-  }
-
-  compile(sourceFile, destFile, destSrcFile, _opts, _cb) {
-    const self = this;
-    let cb;
-    let opts;
-    if (typeof _opts !== 'object') {
-      cb = _opts;
-      opts = {};
-    } else {
-      cb = _cb;
-      opts = _opts;
-    }
-
-    let compilationResult;
-    let src;
-    let lastHash;
-    let currentHash;
-    let lastSolcVersion;
-    let currentSolcVersion;
-
-    return async.series([
-      (cb2) => {
-        self.loadSol(sourceFile, (err, _src) => {
-          if (err) return cb2(err);
-          src = _src;
-          return cb2();
-        });
-      },
-      (cb2) => {
-        Solcpiler.applyConstants(src, opts, (err, _src) => {
-          if (err) return cb2(err);
-          src = _src;
-          return cb2();
-        });
-      },
-      (cb2) => {
-        self.setSolidityVersion(opts.solcVersion, (err) => {
-          if (err) return cb2(err);
-          return cb2();
-        });
-      },
-      (cb2) => {
-        Solcpiler.readLastHash(destFile, (err, hash, version) => {
-          if (err) return cb2(err);
-          lastHash = hash;
-          lastSolcVersion = version;
-          return cb2();
-        });
-      },
-      (cb2) => {
-        Solcpiler.calcCurrentHash(src, (err, hash) => {
-          if (err) return cb2(err);
-          currentHash = hash;
-          currentSolcVersion = this.useSolc.version();
-          return cb2();
-        });
-      },
-      (cb2) => {
-        // Shorcut if it's already compiled
-        if ((lastHash === currentHash) &&
-            (lastSolcVersion === currentSolcVersion)) {
-          return cb2();
-        }
-        self.solCompile(src, (err, result) => {
-          if (err) return cb2(err);
-          compilationResult = result;
-          return cb2();
-        });
-        return null;
-      },
-      (cb2) => {
-        // Shorcut if it's already compiled
-        if ((lastHash === currentHash) &&
-            (lastSolcVersion === currentSolcVersion)) {
-          return cb2();
-        }
-        let S = '';
-        S += '/* This is an autogenerated file. DO NOT EDIT MANUALLY */\n\n';
-
-//        console.log(destFile, JSON.stringify(Object.keys(compilationResult.keys)));
-
-        _.each(compilationResult, (contract, _contractName) => {
-          let contractName;
-          if (_contractName[0] === ':') {
-            contractName = _contractName.substr(1);
-          } else {
-            contractName = _contractName;
-          }
-          const abi = JSON.parse(contract.interface);
-          const byteCode = contract.bytecode;
-          const runtimeByteCode = contract.runtimeBytecode;
-          S += `exports.${contractName}Abi = ${JSON.stringify(abi)}\n`;
-          S += `exports.${contractName}ByteCode = "0x${byteCode}"\n`;
-          S += `exports.${contractName}RuntimeByteCode = "0x${runtimeByteCode}"\n`;
-        });
-        S += `exports._solcVersion = "${self.useSolc.version()}"\n`;
-        S += `exports._sha256 = "${currentHash}"\n`;
-
-        fs.writeFile(destFile, S, cb2);
-        return null;
-      },
-      (cb2) => {
-        fs.writeFile(destSrcFile, src, cb2);
-      },
-    ], cb);
-  }
+    return dir;
 }
 
+const resolveBuildFile = (opts, contractName) => {
+    return path.join(opts.outputJsDir, `${contractName}.sol.js`);
+}
 
-const solcpiler = new Solcpiler();
+/**
+ * reads the build file and gathers all contract hashes & the _solcVersion
+ * 
+ * @param {string} buildFile the generated build file to read the hashes from
+ * @returns {object} k (contract path) : v (hash)
+ */
+const readMetadata = (buildFile) => {
+    if (!fs.existsSync(buildFile)) return {};
 
-module.exports = solcpiler;
+    const build = require(require.resolve(buildFile, { paths: [process.cwd()] }));
 
+    return Object.keys(build)
+        .filter(k => k.endsWith('_sha256') || k === '_solcVersion')
+        .reduce((res, k) => {
+            if (k === '_solcVersion') {
+                res[k] = build[k];
+            } else {
+                const file = k.split('_sha256')[0].slice(1);
+                res[file] = build[k];
+            }
+            return res;
+        }, {});
+}
+
+class Solcpiler {
+    constructor(opts, files) {
+        this.opts = opts || {};
+        this.files = files;
+        this.sources = {};
+        // need to keep deps separate b/c we load the source files to check the hashes
+        // if all hashes match, we don't need to compile them. this.sources is passed to
+        // solc.compile.
+        this.importSources = {};
+        this.sourceHashes = {};
+        this.solc = solc;
+        this.baseDir = resolveBaseDir();
+    }
+
+    compile() {
+        if (!Array.isArray(this.files) || this.files.length === 0) {
+            console.log('No files to compile');
+            return;
+        }
+
+        this.updateTime = new Date();
+        Promise.all([
+            ...this.files.map(f => this.loadFile(f))
+        ])
+            .then(() => {
+                if (!this.opts.quiet) console.log('\ncalculating contract hashes...\n');
+                this.removeUnchangedSources();
+
+                if (Object.keys(this.sources).length === 0) throw new BreakSignal();
+
+                return this.setSolidityVersion();
+            })
+            .then(() => {
+                if (!this.opts.quiet) console.log(`compiling contracts...\n\n${Object.keys(this.sources).join('\n')}\n`);
+                // Setting 1 as second parameter activates the optimizer
+                const output = this.solc.compile({ sources: this.sources }, 1, (_path) => this.resolvePath(_path));
+                if (!this.opts.quiet) console.log('\n');
+
+                if (output.errors) {
+                    let hasError = false;
+
+                    if (!this.opts.quiet) console.log('\nErrors/Warnings:\n');
+                    output.errors.forEach(e => {
+                        const isError = e.includes('Error: ')
+                        hasError = hasError || isError;
+
+                        if (!isError && this.opts.quiet) return;
+                        console.log(e);
+                    });
+
+                    if (hasError) {
+                        console.log('Compiler errors!')
+                        return;
+                    }
+                }
+
+                if (!this.opts.quiet) console.log('saving output...');
+
+                output.sourceList.forEach(s => this.generateFiles(output, s))
+
+                // generate a combined.json file. This can be used to feed into evmlab for debugging
+                Object.keys(output.contracts).forEach(c => {
+                    const contract = output.contracts[c];
+                    output.contracts[c] = {
+                        functionHashes: contract.functionHashes,
+                        gasEstimates: contract.gasEstimates,
+                        abi: contract.interface,
+                        bin: contract.bytecode,
+                        'bin-runtime': contract.runtimeBytecode,
+                        srcmap: contract.srcmap,
+                        'srcmap-runtime': contract.srcmapRuntime,
+                    }
+                })
+
+                output.sourceList = Object.keys(output.sources);
+                delete output.sources;
+
+                fs.writeFileSync(path.join(this.opts.outputSolDir, `combined.json`), JSON.stringify(output, null, 2));
+            })
+            .catch(e => {
+                if (e instanceof BreakSignal) {
+                    return;
+                }
+                console.error(e);
+            });
+    }
+
+    /** 
+     * removes any contracts from this.sources that have not changed since the last compile
+    */
+    removeUnchangedSources() {
+        const unchanged = [];
+
+        let currentVersion = (this.opts.solcVersion) ? this.opts.solcVersion + '.Emscripten.clang' : solc.version();
+        if (currentVersion.startsWith('v')) currentVersion = currentVersion.slice(1);
+
+        Object.keys(this.sources).forEach(f => {
+            const contractName = f.split(path.sep).pop().replace('.sol', '');
+            const buildFile = resolveBuildFile(this.opts, contractName);
+
+            const prevMetadata = readMetadata(buildFile);
+
+            const prevVersion = prevMetadata['_solcVersion'];
+
+            // different versions, so we need to recompile
+            if (prevVersion !== currentVersion) return;
+
+            delete prevMetadata['_solcVersion'];
+            const prevHashes = Object.assign({}, prevMetadata);
+
+            // build file wasn't found, so we need to compile
+            if (Object.keys(prevHashes).length === 0) return;
+
+            // resolve all deps for this contract using regex b/c the solidity AST has
+            // not been generated
+            const contracts = this.resolveImportsFromFile(f);
+            contracts.push(f);
+
+            const contractHashes = contracts.reduce((val, c) => {
+                val[c] = this.hashSource(c)
+                return val;
+            }, {});
+
+            if (Object.keys(prevHashes).length !== Object.keys(contractHashes).length) return;
+
+            let hasChanged = false;
+            Object.keys(contractHashes).forEach(k => {
+                if (contractHashes[k] !== prevHashes[k]) hasChanged = true;
+            });
+
+            if (!hasChanged) unchanged.push(f);
+        });
+
+        if (!this.opts.quiet) console.log('\n');
+        unchanged.forEach(f => {
+            if (!this.opts.quiet) console.log(`skipping ${f}... contract and dependencies unchanged`);
+            delete this.sources[f];
+        })
+        if (!this.opts.quiet) console.log('\n');
+    }
+
+    /**
+     * recursively resolves imports for a contract using regex
+     * 
+     * @param {string} sourceFile contract file to resolve imports for
+     */
+    resolveImportsFromFile(sourceFile) {
+        let imports = [];
+
+        const dirname = path.dirname(sourceFile);
+        let prefix = '';
+        if (dirname.startsWith('.')) {
+            prefix = dirname.split(path.sep)[0] + path.sep;
+        }
+
+        const r = /^import[\s]*(['"])(.*)\1;/gm;
+        const contract = this.sources[sourceFile] || this.importSources[sourceFile];
+
+        // find all import statements
+        const matches = (contract) ? contract.match(r) || [] : [];
+        matches.forEach(i => {
+            const r2 = /import[\s]*(['"])(.*)\1;/;
+            let importFile = r2.exec(i)[2];
+
+            // even though a leading './' isn't needed to resolve the file, _path needs to 
+            // match how solidity will look for the file when calling the importCallback (resolvePath),
+            // so we can return the already loaded file, as well as to sanity check the deps that we find
+            // here w/ what solidity returns
+            const _path = (importFile.startsWith('.')) ? prefix + path.join(dirname, importFile) : importFile;
+
+            // loads the contract file if necessary
+            if (!this.sources[_path] && !this.importSources[_path]) this.resolvePath(_path);
+
+            imports = imports.concat([
+                ...this.resolveImportsFromFile(_path),
+                _path,
+            ]);
+        })
+
+        return Array.from(new Set(imports));
+    }
+
+    /**
+     * Generates the *.sol.js & *_all.sol files for the provided sourceFile, using the provided
+     * compiler output.
+     * 
+     * @param {object} output solcjs compiler output
+     * @param {string} sourceFile the contract to generate files for
+     */
+    generateFiles(output, sourceFile) {
+        const contractFiles = this.resolveImports(output.sources, sourceFile);
+        contractFiles.push(sourceFile);
+
+        const contracts = Object.keys(output.contracts);
+
+        // generate js file
+        let js = '/* This is an autogenerated file. DO NOT EDIT MANUALLY */\n\n';
+
+        contractFiles.forEach(f => {
+            contracts.filter(c => c.startsWith(f))
+                .forEach(c => {
+                    const contractName = c.split(':')[1];
+                    const abi = output.contracts[c].interface;
+                    const byteCode = output.contracts[c].bytecode;
+                    const runtimeByteCode = output.contracts[c].runtimeBytecode;
+                    js += `exports.${contractName}Abi = ${abi}\n`;
+                    js += `exports.${contractName}ByteCode = "0x${byteCode}"\n`;
+                    js += `exports.${contractName}RuntimeByteCode = "0x${runtimeByteCode}"\n`;
+                })
+            js += `exports['_${f}_sha256'] = "${this.hashSource(f)}"\n`;
+        });
+        js += `exports._solcVersion = "${this.solc.version()}"\n`;
+
+        const contractName = sourceFile.split(path.sep).pop().replace('.sol', '');
+        fs.writeFileSync(resolveBuildFile(this.opts, contractName), js);
+
+        // generate _all.sol file
+        const r = /^import *"(.*)";/gm;
+
+        let sol = '';
+        contractFiles.forEach(c => {
+            const contract = this.sources[c] || this.importSources[c];
+            sol += `\n\n///File: ${c}\n${contract.replace(r, '')}`;
+        });
+
+        fs.writeFileSync(path.join(this.opts.outputSolDir, `${contractName}_all.sol`), sol);
+    }
+
+    /**
+     * recursively resolves imports for a contract using the solidity AST
+     * 
+     * @param {array} sources sources array from solc.compile results
+     * @param {string} path the path of the contract to resolve imports for
+     * @returns {array} ordered array of contracts imported by the contract specified by the path param
+     */
+    resolveImports(sources, path) {
+        const ast = sources[path].AST;
+        let imports = [];
+
+        ast.children
+            .filter(c => c.name === 'ImportDirective')
+            .forEach(i => {
+                const { absolutePath } = i.attributes;
+                imports = imports.concat([
+                    ...this.resolveImports(sources, absolutePath),
+                    absolutePath
+                ]);
+            });
+
+        return Array.from(new Set(imports));
+    }
+
+    /**
+     * reads the contents of the provided sourceFile. If this file is a dependency, 
+     * then we add the contents to the importSources object, otherwise the contents
+     * are added to the sources object.
+     * 
+     * @param {string} sourceFile the file to load
+     * @param {bool} isDep is this file a dependency of another contract
+     */
+    loadFile(sourceFile, isDep = false) {
+        // check if we've already loaded this file
+        if (this.sources[sourceFile] || this.importSources[sourceFile]) return Promise.resolve();
+
+        if (this.opts.verbose) console.log('loading file ->', sourceFile);
+
+        return new Promise((resolve, reject) => {
+            fs.readFile(sourceFile, 'utf8', (err, _srcCode) => {
+                if (err) return reject(err);
+
+                if (isDep)
+                    this.importSources[sourceFile] = this.applyConstants(_srcCode);
+                else
+                    this.sources[sourceFile] = this.applyConstants(_srcCode);
+                resolve();
+            });
+        });
+    }
+
+    /**
+     * sync version of loadFile. This is needed because solcjs resolveImports callback doesn't
+     * work w/ async code
+     */
+    loadFileSync(sourceFile, isDep = false) {
+        // check if we've already loaded this file
+        if (this.sources[sourceFile] || this.importSources[sourceFile]) return;
+
+        if (this.opts.verbose) console.log('loading file ->', sourceFile);
+
+        const _srcCode = fs.readFileSync(sourceFile, 'utf8');
+        if (isDep)
+            this.importSources[sourceFile] = this.applyConstants(_srcCode);
+        else
+            this.sources[sourceFile] = this.applyConstants(_srcCode);
+    }
+
+    /**
+     * Returns the contents of the contract at the given _path.
+     * 
+     * @param {string} _path solidity path for the contract sources to resolve
+     * @returns {object} obj w/ a single property 'contents' with the contract source
+     */
+    resolvePath(_path) {
+        if (this.opts.verbose) console.log(`resolving import -> ${_path}`);
+
+        if (this.sources[_path]) return { contents: this.sources[_path] };
+        if (this.importSources[_path]) return { contents: this.importSources[_path] };
+
+        const load = (f) => {
+            this.loadFileSync(f, true);
+            if (f !== _path) {
+                this.importSources[_path] = this.importSources[f];
+                delete this.sources[f];
+            }
+            return { contents: this.importSources[_path] };
+        }
+
+        if (fs.existsSync(_path)) return load(_path);
+
+        let npmImportFile;
+        if (require.resolve.path) {
+            npmImportFile = require.resolve(_path, { paths: [this.baseDir] });
+        } else {
+            npmImportFile = path.join(this.baseDir, 'node_modules', _path);
+        }
+        if (fs.existsSync(npmImportFile)) return load(npmImportFile);
+
+        let libImportFile = path.join(this.baseDir, 'lib', _path);
+        if (fs.existsSync(libImportFile)) return load(libImportFile);
+
+        return { error: `Looked in dir: ${_path}, npm: ${npmImportFile}, and lib: ${libImportFile}` }
+    }
+
+    applyConstants(src) {
+        let srcOut = src;
+
+        Object.keys(this.opts).forEach(param => {
+            const value = this.opts[param];
+
+            const rule = new RegExp(`constant ${param} = (.*);`, 'gm');
+            const replacedText = `constant ${param} = ${value};`;
+
+            srcOut = srcOut.replace(rule, replacedText);
+        })
+
+        return srcOut;
+    }
+
+    setSolidityVersion() {
+        if (!this.opts.solcVersion) return Promise.resolve();
+
+        const v = (this.opts.solcVersion.startsWith('v')) ? this.opts.solcVersion.slice(1) : this.opts.solcVersion;
+        if (solc.version().startsWith(v)) return;
+
+        if (!this.opts.quiet) console.log('setting solc version', this.opts.solcVersion);
+
+        return new Promise((resolve, reject) => {
+            solc.loadRemoteVersion(this.opts.solcVersion, (err, _solc) => {
+                if (err) return reject(err);
+                this.solc = _solc;
+                resolve();
+            })
+        })
+    }
+
+    hashSource(f) {
+        if (this.sourceHashes[f]) return this.sourceHashes[f];
+
+        const source = this.sources[f] || this.importSources[f];
+
+        const hash = crypto
+            .createHash('sha256')
+            .update(source, 'utf8')
+            .digest('hex');
+
+        this.sourceHashes[f] = hash;
+        return hash;
+    };
+
+}
+
+module.exports = Solcpiler;
