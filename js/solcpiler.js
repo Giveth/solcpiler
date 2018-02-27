@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const glob = require('glob');
 const solc = require('solc');
 const crypto = require('crypto');
 
@@ -15,9 +16,14 @@ const resolveBaseDir = () => {
     const exists = () => fs.existsSync(path.join(dir, 'package.json'));
 
     while (!exists()) {
-        const split = dir.split(path.sep);
-        spilt.pop()
-        dir = split.join(path.sep);
+        const s = dir.split(path.sep);
+        s.pop();
+        dir = s.join(path.sep);
+
+        if (dir === '' && !exists()) {
+            dir = process.cwd();
+            break;
+        }
     }
 
     return dir;
@@ -55,6 +61,7 @@ class Solcpiler {
     constructor(opts, files) {
         this.opts = opts || {};
         this.files = files;
+        this.libs = undefined;
         this.sources = {};
         // need to keep deps separate b/c we load the source files to check the hashes
         // if all hashes match, we don't need to compile them. this.sources is passed to
@@ -370,6 +377,12 @@ class Solcpiler {
 
         if (fs.existsSync(_path)) return load(_path);
 
+        let contractImportFile = path.join(this.baseDir, 'contracts', _path);
+        if (fs.existsSync(contractImportFile)) return load(contractImportFile);
+
+        let srcImportFile = path.join(this.baseDir, 'src', _path);
+        if (fs.existsSync(srcImportFile)) return load(srcImportFile);
+
         let npmImportFile;
         if (require.resolve.path) {
             npmImportFile = require.resolve(_path, { paths: [this.baseDir] });
@@ -378,10 +391,54 @@ class Solcpiler {
         }
         if (fs.existsSync(npmImportFile)) return load(npmImportFile);
 
-        let libImportFile = path.join(this.baseDir, 'lib', _path);
-        if (fs.existsSync(libImportFile)) return load(libImportFile);
+        if (this.libs === undefined) {
+            this.gatherLibs();
+        }
 
-        return { error: `Looked in dir: ${_path}, npm: ${npmImportFile}, and lib: ${libImportFile}` }
+        if (this.libs[_path]) return load(this.libs[_path]);
+
+        return { error: `Looked in dir: ${_path}, contracts: ${contractImportFile}, src: ${srcImportFile}, npm: ${npmImportFile}, and libs` };
+    }
+
+    /** 
+     * collect all contracts in the lib directory, the same way dapp-tools (https://github.com/dapphub/dapp)
+     * resolves libs
+     * 
+     * libs are imported like: "dir/contract" which could be a lib of a lib.
+     * 
+     * ex: "ds-auth/auth.sol" could exist in the following locations:
+     *   "lib/ds-auth/src/auth.sol"
+     *   "lib/ds-token/lib/ds-auth/src/auth.sol"
+     * 
+     * "index.sol" is imported via the package name
+     * 
+     * ex: "ds-auth" could exist in the following locations:
+     *   "lib/ds-auth/src/index.sol"
+     *   "lib/ds-token/lib/ds-auth/src/index.sol"
+    */
+    gatherLibs() {
+        const pattern = path.join(this.baseDir, 'lib', '**', 'src', '*.sol');
+        if (this.opts.verbose) console.log('\ncollecting lib contracts using glob pattern ->', pattern, '\n');
+
+        const libContracts = glob.sync(pattern);
+        this.libs = {};
+        libContracts.forEach(c => {
+            const s = c.split(path.sep).slice(-3);
+            const contract = (s[2] === 'index.sol') ? s[0] : path.join(s[0], s[2]);
+            // libs are git submodules, so the same submodule may be included multiple times
+            // we only keep the contract w/ the shortest path
+            if (!this.libs[contract] ||
+                c.split(path.sep).length < this.libs[contract].split(path.sep).length) {
+                this.libs[contract] = c;
+            }
+        });
+
+        if (this.opts.verbose) {
+            Object.keys(this.libs).forEach(l => {
+                console.log(`mapped ${l} -> ${this.libs[l]}`);
+            });
+            console.log('\n');
+        }
     }
 
     applyConstants(src) {
