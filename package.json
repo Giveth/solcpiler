@@ -14,11 +14,11 @@
   "dependencies": {
     "app-root-path": "^2.0.1",
     "async": "^2.5.0",
-    "eth-contract-class": "0.0.7",
+    "eth-contract-class": "^0.0.8",
     "glob": "^7.1.2",
     "lodash": "^4.17.4",
     "solc": "^0.4.19",
-    "web3": "^0.19.1",
+    "web3-utils": "^1.0.0-beta.30",
     "yargs": "^8.0.2"
   },
   "repository": {
