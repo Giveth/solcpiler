@@ -101,9 +101,9 @@ class Solcpiler {
                 const currentSolcVersion = this.getCurrentSolcVersion(useNativeSolc);
                 this.removeUnchangedSources(currentSolcVersion);
 
-                fs.writeFileSync(path.join(this.opts.outputSolDir, 'solcStandardInput.json'), JSON.stringify(this.standardInput, null, 2));
-
                 if (Object.keys(this.sources).length === 0) throw new BreakSignal();
+
+                fs.writeFileSync(path.join(this.opts.outputSolDir, 'solcStandardInput.json'), JSON.stringify(this.standardInput, null, 2));
 
                 return (useNativeSolc) ? Promise.resolve() : this.setSolidityVersion();
             })
