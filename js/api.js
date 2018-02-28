@@ -21,7 +21,6 @@ const checkDirectoryExists = (dir, createdir, cb) => {
 };
 
 const compile = (opts, cb) => {
-  console.log(opts.input);
   glob(opts.input, {}, (err, files) => {
     if (err) {
       return;
