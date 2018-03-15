@@ -299,7 +299,10 @@ class Solcpiler {
             const _path = (importFile.startsWith('.')) ? prefix + path.join(dirname, importFile) : importFile;
 
             // loads the contract file if necessary
-            if (!this.sources[_path] && !this.importSources[_path]) this.resolvePath(_path);
+            if (!this.sources[_path] && !this.importSources[_path]) {
+                const res = this.resolvePath(_path);
+                if (res.error) throw new Error(`Missing source for ${i}\n${res.error}`);
+            }
 
             imports = imports.concat([
                 ...this.resolveImportsFromFile(_path),
