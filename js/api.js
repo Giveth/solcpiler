@@ -2,13 +2,14 @@ const path = require('path');
 const async = require('async');
 const glob = require('glob');
 const fs = require('fs');
+const mkdirp = require('mkdirp');
 const Solcpiler = require('./solcpiler');
 
 const checkDirectoryExists = (dir, createdir, cb) => {
   fs.stat(dir, (err, stats) => {
     if (err) {
       if (createdir) {
-        fs.mkdir(dir, cb);
+        mkdirp(dir, cb);
       } else {
         cb(new Error(`${dir} does not exists`));
       }

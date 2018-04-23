@@ -17,6 +17,7 @@
     "eth-contract-class": "^0.0.8",
     "glob": "^7.1.2",
     "lodash": "^4.17.4",
+    "mkdirp": "^0.5.1",
     "solc": "^0.4.19",
     "web3-utils": "^1.0.0-beta.30",
     "yargs": "^8.0.2"
