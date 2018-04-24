@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const glob = require('glob');
+const globby = require('globby');
 const solcjs = require('solc');
 const utils = require('web3-utils');
 const { execSync, spawnSync } = require('child_process');
@@ -498,7 +498,7 @@ class Solcpiler {
         const pattern = path.join(this.baseDir, 'lib', '**', 'src', '*.sol');
         if (this.opts.verbose) console.log('\ncollecting lib contracts using glob pattern ->', pattern, '\n');
 
-        const libContracts = glob.sync(pattern);
+        const libContracts = globby.sync(pattern);
         this.libs = {};
         libContracts.forEach(c => {
             const s = c.split(path.sep).slice(-3);

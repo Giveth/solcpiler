@@ -1,6 +1,6 @@
 const path = require('path');
 const async = require('async');
-const glob = require('glob');
+const globby = require('globby');
 const fs = require('fs');
 const mkdirp = require('mkdirp');
 const Solcpiler = require('./solcpiler');
@@ -22,15 +22,13 @@ const checkDirectoryExists = (dir, createdir, cb) => {
 };
 
 const compile = (opts, cb) => {
-  glob(opts.input, {}, (err, files) => {
-    if (err) {
-      return;
-    }
+  globby(opts.input).then(files => {
 
     const solcpiler = new Solcpiler(opts, files);
     solcpiler.compile();
     cb();
-  });
+  })
+  .catch(console.err);
 };
 
 const copyFile = (source, target, cb) => {
@@ -95,16 +93,16 @@ const readConfigFile = (filename, cb) => {
 const optsDefault = {
   outputJsDir: 'build',
   outputSolDir: 'build',
-  input: './*.sol',
+  input: ['./*.sol'],
   createdir: true,
   quiet: false,
   verbose: false,
 };
 
 if (fs.existsSync('./contracts')) {
-  optsDefault.input = './contracts/**/*.sol';
+  optsDefault.input = ['./contracts/**/*.sol'];
 } else if (fs.existsSync('./src')) {
-  optsDefault.input = './src/**/*.sol';
+  optsDefault.input = ['./src/**/*.sol'];
 }
 
 const runFromConfigFile = (configFile, overloadOpts, cb) => {
