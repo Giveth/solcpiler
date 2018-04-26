@@ -129,7 +129,9 @@ class Solcpiler {
                     });
 
                     if (hasError) {
-                        console.log('Compiler errors!')
+                        console.log('Compiler errors!\n')
+
+                        if (useNativeSolc) console.log('Is the native solc the correct version needed for your contracts? Due to a bug in solc compiler, it will not inform you if using a version < what is required in the `pragma` directive.\n\n');
                         return;
                     }
                 }
