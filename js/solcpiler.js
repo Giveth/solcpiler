@@ -131,7 +131,8 @@ class Solcpiler {
                     if (hasError) {
                         console.log('Compiler errors!\n')
 
-                        if (useNativeSolc) console.log('Is the native solc the correct version needed for your contracts? Due to a bug in solc compiler, it will not inform you if using a version < what is required in the `pragma` directive.\n\n');
+                        const parserError = output.errors.some(e => e.type === 'ParserError');
+                        if (useNativeSolc && parserError) console.log('Is the native solc the correct version needed for your contracts? A ParserError occurred, which will be thrown before the `pragma` directive is checked.\n\n');
                         return;
                     }
                 }
