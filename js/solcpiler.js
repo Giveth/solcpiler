@@ -145,7 +145,6 @@ class Solcpiler {
                 })
                 Object.keys(output.contracts).forEach(f => {
                     Object.keys(output.contracts[f]).forEach(k => {
-                        delete output.contracts[f][k].metadata;
                         delete output.contracts[f][k].evm.assembly;
                         delete output.contracts[f][k].evm.legacyAssembly;
                         delete output.contracts[f][k].evm.bytecode.opcodes;
