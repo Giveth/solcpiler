@@ -64,6 +64,9 @@ const run = (opts, cb) => {
       checkDirectoryExists(opts.outputSolDir, opts.createdir, cb2);
     },
     (cb2) => {
+      checkDirectoryExists(opts.outputArtifactsDir, opts.createdir, cb2);
+    },
+    (cb2) => {
       compile(opts, cb2);
     },
     (cb2) => {
@@ -93,6 +96,7 @@ const readConfigFile = (filename, cb) => {
 const optsDefault = {
   outputJsDir: 'build',
   outputSolDir: 'build',
+  outputArtifactsDir: 'build/artifacts',
   input: ['./*.sol'],
   createdir: true,
   quiet: false,

@@ -17,6 +17,10 @@ const yargs = require('yargs')
     describe: 'Output directory where solidity files concatenated without includes will be copied. Default: ./build',
     type: 'string',
   })
+  .option('output-artifacts-dir', {
+    describe: 'Output directory where artifact files will be generated. These artifacts can be passed to @0xproject/sol-cov to generate a code coverage report',
+    type: 'string',
+  })
   .option('solc-version', {
     describe: 'Solidity version. Example: v0.4.12+commit.194ff033',
     type: 'string',
@@ -54,6 +58,7 @@ const optsCommandLine = {};
 
 if (yargs.outputJsDir) optsCommandLine.outputJsDir = yargs.outputJsDir;
 if (yargs.outputSolDir) optsCommandLine.outputSolDir = yargs.outputSolDir;
+if (yargs.outputAtrifactsDir) optsCommandLine.outputArtifactsDir = yargs.outputArtifactsDir;
 if (yargs.solcVersion) optsCommandLine.solcVersion = yargs.solcVersion;
 if (yargs.input) optsCommandLine.input = yargs.input;
 if (yargs.createdir) optsCommandLine.createdir = yargs.createdir;
