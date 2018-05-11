@@ -308,8 +308,11 @@ class Solcpiler {
     }, []);
 
     // remove any contracts from standardInput that we don't need to compile
+    this.standardInput.settings.remappings = this.standardInput.settings.remappings.filter(
+      remap => toCompile.includes(remap.split("=")[0]));
+
     Object.keys(this.standardInput.sources)
-      .filter(c => !toCompile.includes(c))
+      .filter(c => !toCompile.includes(c) && !this.standardInput.settings.remappings.find(remap => remap.split("=")[1] === c))
       .forEach(c => delete this.standardInput.sources[c]);
 
     if (unchanged.length > 0 && !this.opts.quiet) console.log('\n');
