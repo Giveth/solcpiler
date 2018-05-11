@@ -383,9 +383,9 @@ class Solcpiler {
     const sourceCodes = Object.keys(output.sources).map(cName => this.standardInput.sources[cName].content);
 
     // TODO remove this when sol-cov can handle artifacts specifying paths
-    const sources = Object.keys(standardOutput.sources).reduce((val, name) => {
-      const n = standardInput.sources[name].urls[0].replace('file://', '');
-      val[n] = standardOutput.sources[name];
+    const sources = Object.keys(output.sources).reduce((val, name) => {
+      const n = this.standardInput.sources[name].urls[0].replace('file://', '');
+      val[n] = output.sources[name];
       return val;
   }, {});
 
