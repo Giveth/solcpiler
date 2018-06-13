@@ -58,9 +58,6 @@ const copyFile = (source, target, cb) => {
 const run = (opts, cb) => {
   async.series([
     (cb2) => {
-      checkDirectoryExists(opts.outputJsDir, opts.createdir, cb2);
-    },
-    (cb2) => {
       checkDirectoryExists(opts.outputSolDir, opts.createdir, cb2);
     },
     (cb2) => {
@@ -70,7 +67,7 @@ const run = (opts, cb) => {
       compile(opts, cb2);
     },
     (cb2) => {
-      copyFile(path.join(__dirname, 'contracts.js'), path.join(opts.outputJsDir, 'contracts.js'), cb2);
+      copyFile(path.join(__dirname, 'contracts.js'), path.join(opts.outputArtifactsDir, 'contracts.js'), cb2);
     },
   ], cb);
 };
@@ -94,9 +91,8 @@ const readConfigFile = (filename, cb) => {
 };
 
 const optsDefault = {
-  outputJsDir: 'build',
   outputSolDir: 'build',
-  outputArtifactsDir: 'build/artifacts',
+  outputArtifactsDir: 'build',
   input: ['./*.sol'],
   createdir: true,
   quiet: false,

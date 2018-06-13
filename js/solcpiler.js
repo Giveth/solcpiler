@@ -32,34 +32,20 @@ const resolveBaseDir = () => {
   return dir;
 };
 
-const resolveBuildFile = (opts, contractName) =>
-  path.join(opts.outputJsDir, `${contractName}.sol.js`);
+const resolveArtifactFile = (dir, contractName) => path.join(dir, `${contractName}.json`);
 
 /**
- * reads the build file and gathers all contract hashes & the _solcVersion
+ * reads the artifact file and returns the object
  *
- * @param {string} buildFile the generated build file to read the hashes from
- * @returns {object} k (contract path) : v (hash)
+ * @param {string} dir the dir to look for the artifact file in
+ * @param {string} contractName the name of the contract to get the artifact for
+ * @returns {object} artifact object
  */
-const readMetadata = (buildFile) => {
-  if (!fs.existsSync(buildFile)) return {};
+const readArtifact = (dir, contractName) => {
+  const artifactFile = resolveArtifactFile(dir, contractName);
+  if (!fs.existsSync(artifactFile)) return {};
 
-  const build = require(require.resolve(buildFile, { paths: [process.cwd()] }));
-
-  return Object.keys(build)
-    .filter(k => k.endsWith('_keccak256') || k === '_solcVersion')
-    .reduce((res, k) => {
-      if (k === '_solcVersion') {
-        if (build[k]) {
-          const match = build[k].match(SOLC_VERSION_REGEX);
-          res[k] = match ? match[0] : undefined;
-        }
-      } else {
-        const file = k.split('_keccak256')[0].slice(1);
-        res[file] = build[k];
-      }
-      return res;
-    }, {});
+  return require(require.resolve(artifactFile, { paths: [process.cwd()] }));
 };
 
 class Solcpiler {
@@ -257,46 +243,51 @@ class Solcpiler {
   removeUnchangedSources(currentVersion) {
     const unchanged = [];
 
-    Object.keys(this.sources).forEach((f) => {
-      const contractName = f
-        .split(path.sep)
-        .pop()
-        .replace('.sol', '');
-      const buildFile = resolveBuildFile(this.opts, contractName);
+    Object.keys(this.sources).forEach((source) => {
+      const contractNames = this.resolveContractsInSource(source);
+      if (contractNames.length === 0) return;
 
-      const prevMetadata = readMetadata(buildFile);
-      // console.log(buildFile, prevMetadata);
+      // we only need to check the first artifact b/c all artifacts
+      // for a given source will contain the same imports, solc version,
+      // and keccack256 hash of the file
 
-      const prevVersion = prevMetadata._solcVersion;
+      const artifact = readArtifact(this.opts.outputArtifactsDir, contractNames[0]);
+
+      // artifact file wasn't found, so we need to compile
+      if (!artifact || !artifact.compiler || !artifact.sources) return;
 
       // different versions, so we need to recompile
-      if (prevVersion !== currentVersion) return;
-
-      delete prevMetadata._solcVersion;
-      const prevHashes = Object.assign({}, prevMetadata);
-
-      // build file wasn't found, so we need to compile
-      if (Object.keys(prevHashes).length === 0) return;
+      if (!artifact.compiler.version) return;
+      // using a regex to get version here b/c the compiler version will
+      // contain system info (ex. Darwin.appleclang, which we don't care about
+      if (artifact.compiler.version !== currentVersion) return;
 
       // resolve all deps for this contract using regex b/c the solidity AST has
       // not been generated
-      const contracts = this.resolveImportsFromFile(f);
-      contracts.push(f);
+      const contracts = this.resolveImportsFromFile(source);
+      contracts.push(source);
 
       const contractHashes = contracts.reduce((val, c) => {
         val[c] = this.hashSource(c);
         return val;
       }, {});
 
-      if (Object.keys(prevHashes).length !== contracts.length) return;
+      if (Object.keys(artifact.sources).length !== contracts.length) return;
 
+      // check if any sources have changed
       let hasChanged = false;
       contracts.forEach((c) => {
         if (!this.standardInput.sources[c]) c = this.remappings[c];
-        if (this.standardInput.sources[c].keccak256 !== prevHashes[c]) hasChanged = true;
+        if (
+          !artifact.sources[c] ||
+          !this.standardInput.sources[c] ||
+          this.standardInput.sources[c].keccak256 !== artifact.sources[c].keccak256
+        ) {
+          hasChanged = true;
+        }
       });
 
-      if (!hasChanged) unchanged.push(f);
+      if (!hasChanged) unchanged.push(source);
     });
 
     if (unchanged.length > 0 && !this.opts.quiet) console.log('\n');
@@ -312,11 +303,13 @@ class Solcpiler {
     }, []);
 
     // remove any contracts from standardInput that we don't need to compile
-    this.standardInput.settings.remappings = this.standardInput.settings.remappings.filter(
-      remap => toCompile.includes(remap.split("=")[0]));
+    this.standardInput.settings.remappings = this.standardInput.settings.remappings.filter(remap =>
+      toCompile.includes(remap.split('=')[0]));
 
     Object.keys(this.standardInput.sources)
-      .filter(c => !toCompile.includes(c) && !this.standardInput.settings.remappings.find(remap => remap.split("=")[1] === c))
+      .filter(c =>
+        !toCompile.includes(c) &&
+          !this.standardInput.settings.remappings.find(remap => remap.split('=')[1] === c))
       .forEach(c => delete this.standardInput.sources[c]);
 
     if (unchanged.length > 0 && !this.opts.quiet) console.log('\n');
@@ -370,7 +363,7 @@ class Solcpiler {
   }
 
   /**
-   * Generates the *.sol.js, *_all.sol & *.json files for the provided sourceFile, using the provided
+   * Generates the *_all.sol & *.json files for the provided sourceFile, using the provided
    * compiler output.
    *
    * @param {object} output solcjs compiler output
@@ -378,73 +371,53 @@ class Solcpiler {
    */
   generateFiles(output, sourceFile) {
     const contractFiles = this.resolveImportsFromFile(sourceFile);
-    contractFiles.push(sourceFile);
 
-    const sourceCodes = Object.keys(output.sources).map(cName => this.standardInput.sources[cName].content);
+    const sources = contractFiles
+      .map(f => (output.contracts[f] ? f : this.remappings[f]))
+      .filter(f => f !== undefined)
+      .sort((a, b) => output.sources[a].id - output.sources[b].id)
+      .reduce((val, name) => {
+        const sourceInput = this.standardInput.sources[name];
+        const file = sourceInput.urls[0].replace('file://', '');
+        val[name] = Object.assign({}, output.sources[name], {
+          keccak256: sourceInput.keccak256,
+          file,
+        });
+        return val;
+      }, {});
 
-    // TODO remove this when sol-cov can handle artifacts specifying paths
-    const sources = Object.keys(output.sources).reduce((val, name) => {
-      const n = this.standardInput.sources[name].urls[0].replace('file://', '');
-      val[n] = output.sources[name];
-      return val;
-  }, {});
+    // generate artifact file for each contract in sourceFile
+    Object.keys(output.contracts[sourceFile]).forEach((contractName) => {
+      const contract = output.contracts[sourceFile][contractName];
 
-    // generate js file
-    let js = '/* This is an autogenerated file. DO NOT EDIT MANUALLY */\n\n';
-
-    contractFiles.forEach((f) => {
-      if (!output.contracts[f]) f = this.remappings[f];
-      if (!output.contracts[f]) return;
-
-      Object.keys(output.contracts[f]).forEach((contractName) => {
-        const contract = output.contracts[f][contractName];
-        const abi = JSON.stringify(contract.abi);
-        const byteCode = contract.evm.bytecode.object;
-        const runtimeByteCode = contract.evm.deployedBytecode.object;
-        js += `exports.${contractName}Abi = ${abi}\n`;
-        js += `exports.${contractName}ByteCode = "0x${byteCode}"\n`;
-        js += `exports.${contractName}RuntimeByteCode = "0x${runtimeByteCode}"\n`;
-
-        if (f === sourceFile) {
-          // generate artifact file
-          const sources = Object.keys(output.sources).reduce((val, name) => {
-            const n = this.standardInput.sources[name].urls[0].replace('file://', '');
-            val[n] = output.sources[name];
-            return val;
-          }, {});
-
-          const c = Object.assign({}, contract);
-          delete c.metadata;
-
-          const artifact = {
-            contractName,
-            filePath: sourceFile,
-            compilerOutput: c,
-            sources,
-            // sources: output.sources,
-            sourceCodes,
-            compiler: {
-              name: this.useNativeSolc ? 'solc' : 'solcjs',
-              keccak256: this.standardInput.sources[f].keccak256,
-              version: this.compiledSolcVersion,
-              settings: this.standardInput.settings,
-            },
-          };
-          fs.writeFileSync(
-            path.join(this.opts.outputArtifactsDir, `${contractName}.json`),
-            JSON.stringify(artifact, null, 2),
-          );
+      const compilerOutput = Object.keys(contract).reduce((val, key) => {
+        if (key !== 'metadata') {
+          val[key] = contract[key];
         }
-      });
-      js += `exports['_${f}_keccak256'] = "${this.standardInput.sources[f].keccak256}"\n`;
-    });
-    js += `exports._solcVersion = "${this.compiledSolcVersion}"\n`;
+        return val;
+      }, {});
 
-    const contractName = sourceFile
+      const artifact = {
+        contractName,
+        source: sourceFile,
+        compilerOutput,
+        sources,
+        compiler: {
+          name: this.useNativeSolc ? 'solc' : 'solcjs',
+          keccak256: this.standardInput.sources[sourceFile].keccak256,
+          version: this.compiledSolcVersion.match(SOLC_VERSION_REGEX)[0],
+          settings: this.standardInput.settings,
+        },
+      };
+
+      const artifactFile = resolveArtifactFile(this.opts.outputArtifactsDir, contractName);
+      fs.writeFileSync(artifactFile, JSON.stringify(artifact, null, 2));
+    });
+
+    const contractFileName = sourceFile
       .split(path.sep)
       .pop()
       .replace('.sol', '');
-    fs.writeFileSync(resolveBuildFile(this.opts, contractName), js);
 
     // generate _all.sol file
     const r = /^import *"(.*)";/gm;
@@ -459,7 +432,29 @@ class Solcpiler {
       sol += `\n\n///File: ${c}\n\n${contract.replace(r, '')}`;
     });
 
-    fs.writeFileSync(path.join(this.opts.outputSolDir, `${contractName}_all.sol`), sol);
+    fs.writeFileSync(path.join(this.opts.outputSolDir, `${contractFileName}_all.sol`), sol);
+  }
+
+  /**
+   * // TODO replace regex w/ https://github.com/federicobond/solidity-parser-antlr
+   * resolves contracts and interfaces in a source
+   *
+   * @param {string} sourceFile solidity file to resolve contracts for
+   */
+  resolveContractsInSource(sourceFile) {
+    const r = /^(?:contract|interface|library)\s+([a-zA-Z0-9$_]+)/gm;
+    const contract = this.sources[sourceFile] || this.importSources[sourceFile];
+
+    if (!contract) return [];
+
+    // find all import statements
+    const matches = [];
+    let match = r.exec(contract);
+    while (match) {
+      matches.push(match[1]);
+      match = r.exec(contract);
+    }
+    return matches;
   }
 
   /**

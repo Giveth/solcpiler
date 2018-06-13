@@ -1,20 +1,17 @@
-const fs = require("fs");
+const globby = require('globby');
 const generateClass = require('eth-contract-class').default;
 
 const contracts = {};
-fs.readdirSync(__dirname).forEach(file => {
-    if ( /^.*\.sol\.js$/.test(file)) {
-        const f = require("./" + file);
-        Object.keys(f).forEach((k) => {
-            const res = /^(.*)Abi$/.exec(k);
-            if (res) {
-                const contractName = res[1];
-                if (f[contractName+"ByteCode"].length > 2) {
-                    contracts[contractName] = generateClass(f[contractName+"Abi"], f[contractName+"ByteCode"]);
-                }
-            }
-        });
-    }
+globby.sync('*.json', { cwd: __dirname }).forEach((file) => {
+  console.log(file);
+  const { contractName, compilerOutput } = require(`./${file}`);
+
+  if (compilerOutput.abi && compilerOutput.evm.bytecode.object.length > 0) {
+    contracts[contractName] = generateClass(
+      compilerOutput.abi,
+      `0x${compilerOutput.evm.bytecode.object}`,
+    );
+  }
 });
 
 module.exports = contracts;

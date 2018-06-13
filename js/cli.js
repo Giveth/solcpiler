@@ -9,16 +9,12 @@ const yargs = require('yargs')
     describe: 'Config file',
     type: 'string',
   })
-  .option('output-js-dir', {
-    describe: 'Output directory where js files will be copied. Default: ./build',
-    type: 'string',
-  })
   .option('output-sol-dir', {
     describe: 'Output directory where solidity files concatenated without includes will be copied. Default: ./build',
     type: 'string',
   })
   .option('output-artifacts-dir', {
-    describe: 'Output directory where artifact files will be generated. These artifacts can be passed to @0xproject/sol-cov to generate a code coverage report',
+    describe: 'Output directory where artifact files will be generated.',
     type: 'string',
   })
   .option('solc-version', {
@@ -58,7 +54,7 @@ const optsCommandLine = {};
 
 if (yargs.outputJsDir) optsCommandLine.outputJsDir = yargs.outputJsDir;
 if (yargs.outputSolDir) optsCommandLine.outputSolDir = yargs.outputSolDir;
-if (yargs.outputAtrifactsDir) optsCommandLine.outputArtifactsDir = yargs.outputArtifactsDir;
+if (yargs.outputArtifactsDir) optsCommandLine.outputArtifactsDir = yargs.outputArtifactsDir;
 if (yargs.solcVersion) optsCommandLine.solcVersion = yargs.solcVersion;
 if (yargs.input) optsCommandLine.input = yargs.input;
 if (yargs.createdir) optsCommandLine.createdir = yargs.createdir;
