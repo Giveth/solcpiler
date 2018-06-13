@@ -321,7 +321,8 @@ class Solcpiler {
    * @param {string} sourceFile contract file to resolve imports for
    */
   resolveImportsFromFile(sourceFile) {
-    if (this.fileDeps[sourceFile]) return this.fileDeps[sourceFile];
+    // we use .slice() so the fileDeps aren't modified by the calling function
+    if (this.fileDeps[sourceFile]) return this.fileDeps[sourceFile].slice();
 
     let imports = [];
 
@@ -358,7 +359,7 @@ class Solcpiler {
     });
 
     const deps = Array.from(new Set(imports));
-    this.fileDeps[sourceFile] = deps;
+    this.fileDeps[sourceFile] = deps.slice();
     return deps;
   }
 
@@ -371,6 +372,7 @@ class Solcpiler {
    */
   generateFiles(output, sourceFile) {
     const contractFiles = this.resolveImportsFromFile(sourceFile);
+    contractFiles.push(sourceFile);
 
     const sources = contractFiles
       .map(f => (output.contracts[f] ? f : this.remappings[f]))
