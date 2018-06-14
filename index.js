@@ -1,3 +1,4 @@
 const api = require('./js/api.js');
+const SolcpilerArtifactAdapter = require('./js/ArtifactAdapter').default;
 
-module.exports = api;
+module.exports = Object.assign({}, api, { SolcpilerArtifactAdapter });

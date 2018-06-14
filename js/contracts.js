@@ -3,7 +3,6 @@ const generateClass = require('eth-contract-class').default;
 
 const contracts = {};
 globby.sync('*.json', { cwd: __dirname }).forEach((file) => {
-  console.log(file);
   const { contractName, compilerOutput } = require(`./${file}`);
 
   if (compilerOutput.abi && compilerOutput.evm.bytecode.object.length > 0) {
