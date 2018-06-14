@@ -1,6 +1,6 @@
 {
   "name": "solcpiler",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Solidity compiler wraper to generate JS.",
   "main": "index.js",
   "scripts": {
@@ -27,7 +27,6 @@
     "url": "git+https://github.com/jbaylina/solcpiler.git"
   },
   "peerDependencies": {
-    "0xproject-sol-cov-fork": "^1.0.0-0"
   },
   "devDependencies": {
     "eslint": "^4.9.0",

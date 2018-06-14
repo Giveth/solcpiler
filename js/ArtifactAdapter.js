@@ -1,11 +1,13 @@
-// TODO use @0xproject/sol-cov once they release v2-prototype branch
-// const { AbstractArtifactAdapter } = require('@0xproject/sol-cov');
-const { AbstractArtifactAdapter } = require('0xproject-sol-cov-fork');
+const { AbstractArtifactAdapter } = require('@0xproject/sol-cov');
 const globby = require('globby');
 const path = require('path');
 const fs = require('fs');
 
 /**
+ * note: This depends on @0xproject/sol-cov v2-prototype branch which hasn't been released yet.
+ * in order to use the artifact adapter, you need to clone the @0xproject/0xmonorepo locally,
+ * cd to `packages/sol-cov`, build the pkg, and link to your repo locally.
+ * 
  * ArtifactAdapter to be used with 0xproject/sol-cov package to provide code coverage
  * for your solidity contracts
  */
