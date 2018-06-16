@@ -14,7 +14,7 @@
   "dependencies": {
     "app-root-path": "^2.0.1",
     "async": "^2.5.0",
-    "eth-contract-class": "^0.0.9",
+    "eth-contract-class": "^0.0.10",
     "globby": "^8.0.1",
     "lodash": "^4.17.4",
     "mkdirp": "^0.5.1",
