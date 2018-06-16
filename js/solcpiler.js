@@ -123,7 +123,7 @@ class Solcpiler {
             if (useNativeSolc && parserError) {
               console.log('Is the native solc the correct version needed for your contracts? A ParserError occurred, which will be thrown before the `pragma` directive is checked.\n\n');
             }
-            return;
+            process.exit(1);
           }
         }
 
