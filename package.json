@@ -1,6 +1,6 @@
 {
   "name": "solcpiler",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "description": "Solidity compiler wraper to generate JS.",
   "main": "index.js",
   "scripts": {
@@ -26,8 +26,7 @@
     "type": "git",
     "url": "git+https://github.com/jbaylina/solcpiler.git"
   },
-  "peerDependencies": {
-  },
+  "peerDependencies": {},
   "devDependencies": {
     "eslint": "^4.9.0",
     "eslint-config-airbnb": "^16.1.0",
