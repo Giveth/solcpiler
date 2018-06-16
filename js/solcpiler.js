@@ -87,7 +87,6 @@ class Solcpiler {
 
         if (Object.keys(this.sources).length === 0) throw new BreakSignal();
 
-        // console.log(this.standardInput.sources);
         fs.writeFileSync(
           path.join(this.opts.outputSolDir, 'solcStandardInput.json'),
           JSON.stringify(this.standardInput, null, 2),
@@ -204,8 +203,9 @@ class Solcpiler {
 
         // we use remappings here so we don't include duplicate sources
         if (existingSourceKey) {
-          // sourceList files should not be remapped, need to swap
-          if (this.sourceList.includes(c)) {
+          // we don't want to remap sourceList, or paths with leading '.',
+          // so we need to swap
+          if (this.sourceList.includes(c) || (c.startsWith('.') && !existingSourceKey.startsWith('.'))) {
             standardInput.sources[c] = standardInput.sources[existingSourceKey];
             delete standardInput.sources[existingSourceKey];
             delete this.remappings[existingSourceKey];
@@ -459,25 +459,6 @@ class Solcpiler {
       match = r.exec(contract);
     }
     return matches;
-  }
-
-  /**
-   * recursively resolves imports for a contract using the solidity AST
-   *
-   * @param {array} sources sources array from solc.compile results
-   * @param {string} path the path of the contract to resolve imports for
-   * @returns {array} ordered array of contracts imported by the contract specified by the path param
-   */
-  resolveImports(sources, path) {
-    const ast = sources[path].AST;
-    let imports = [];
-
-    ast.children.filter(c => c.name === 'ImportDirective').forEach((i) => {
-      const { absolutePath } = i.attributes;
-      imports = imports.concat([...this.resolveImports(sources, absolutePath), absolutePath]);
-    });
-
-    return Array.from(new Set(imports));
   }
 
   /**
