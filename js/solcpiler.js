@@ -130,13 +130,14 @@ class Solcpiler {
 
         if (!this.opts.quiet) console.log('saving output...');
 
-        Object.keys(this.sources).forEach(s => this.generateFiles(output, s));
-
         // remove some info from the output before writing
         Object.keys(output.sources).forEach((k) => {
           delete output.sources[k].ast;
           delete output.sources[k].legacyAST;
         });
+
+        Object.keys(this.sources).forEach(s => this.generateFiles(output, s));
+
         Object.keys(output.contracts).forEach((f) => {
           Object.keys(output.contracts[f]).forEach((k) => {
             delete output.contracts[f][k].evm.assembly;
@@ -380,9 +381,9 @@ class Solcpiler {
       .sort((a, b) => output.sources[a].id - output.sources[b].id)
       .reduce((val, name) => {
         const sourceInput = this.standardInput.sources[name];
-        const file = sourceInput.urls[0].replace('file://', '');
+        const file = this.fileMap[name];
         val[name] = Object.assign({}, output.sources[name], {
-          keccak256: sourceInput.keccak256,
+          keccak256: sourceInput ? sourceInput.keccak256 : this.hashSource(name),
           file,
         });
         return val;
@@ -426,11 +427,12 @@ class Solcpiler {
 
     let sol = '';
     contractFiles.forEach((c) => {
-      if (!this.standardInput.sources[c] && this.remappings[c]) {
+      let contract = this.sources[c] || this.importSources[c];
+      if (!contract && this.remappings[c]) {
         c = this.remappings[c];
+        contract = this.sources[c] || this.importSources[c];
       }
 
-      const contract = this.standardInput.sources[c].content;
       sol += `\n\n///File: ${c}\n\n${contract.replace(r, '')}`;
     });
 
@@ -540,7 +542,8 @@ class Solcpiler {
       return { contents: this.importSources[_path] };
     };
 
-    if (fs.existsSync(_path)) return load(_path);
+    const file = path.join(this.baseDir, _path);
+    if (fs.existsSync(file)) return load(file);
 
     const contractImportFile = path.join(this.baseDir, 'contracts', _path);
     if (fs.existsSync(contractImportFile)) return load(contractImportFile);
