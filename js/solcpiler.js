@@ -294,6 +294,9 @@ class Solcpiler {
     if (unchanged.length > 0 && !this.opts.quiet) console.log('\n');
     unchanged.forEach((f) => {
       if (!this.opts.quiet) console.log(`skipping ${f}... contract and dependencies unchanged`);
+      // we move to importSources b/c we may still need the contract later if it is used
+      // by a source we need to compile
+      this.importSources[f] = this.sources[f];
       delete this.sources[f];
     });
 
