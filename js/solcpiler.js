@@ -205,7 +205,10 @@ class Solcpiler {
         if (existingSourceKey) {
           // we don't want to remap sourceList, or paths with leading '.',
           // so we need to swap
-          if (this.sourceList.includes(c) || (c.startsWith('.') && !existingSourceKey.startsWith('.'))) {
+          if (
+            this.sourceList.includes(c) ||
+            (c.startsWith('.') && !existingSourceKey.startsWith('.'))
+          ) {
             standardInput.sources[c] = standardInput.sources[existingSourceKey];
             delete standardInput.sources[existingSourceKey];
             delete this.remappings[existingSourceKey];
@@ -396,17 +399,10 @@ class Solcpiler {
     Object.keys(output.contracts[sourceFile]).forEach((contractName) => {
       const contract = output.contracts[sourceFile][contractName];
 
-      const compilerOutput = Object.keys(contract).reduce((val, key) => {
-        if (key !== 'metadata') {
-          val[key] = contract[key];
-        }
-        return val;
-      }, {});
-
       const artifact = {
         contractName,
         source: sourceFile,
-        compilerOutput,
+        compilerOutput: this.filterCompilerOutput(sourceFile, contractName, contract),
         sources,
         compiler: {
           name: this.useNativeSolc ? 'solc' : 'solcjs',
@@ -440,6 +436,57 @@ class Solcpiler {
     });
 
     fs.writeFileSync(path.join(this.opts.outputSolDir, `${contractFileName}_all.sol`), sol);
+  }
+
+  /**
+   * Ensure that only the outputSelection specified in standardInput is returned.
+   *
+   * This function is b/c of a bug in the compiler that ignores the
+   * standardInput.outputSelection setting.
+   *
+   * @param {*} sourceFile
+   * @param {*} contractName
+   * @param {*} output The compiler output for the given sourceFile & contractName
+   */
+  filterCompilerOutput(sourceFile, contractName, output) {
+    const settingsOutputSelection = this.standardInput.settings.outputSelection;
+
+    let outputSelection = [];
+    if (settingsOutputSelection['*']) {
+      if (settingsOutputSelection['*']['*']) {
+        outputSelection = outputSelection.concat(settingsOutputSelection['*']['*']);
+      }
+      if (settingsOutputSelection['*']['']) {
+        outputSelection = outputSelection.concat(settingsOutputSelection['*']['']);
+      }
+    }
+
+    const mIndex = outputSelection.indexOf('metadata');
+    if (mIndex > -1) outputSelection.splice(mIndex, 1);
+
+    if (settingsOutputSelection[sourceFile] && settingsOutputSelection[sourceFile][contractName]) {
+      outputSelection = outputSelection.concat(settingsOutputSelection[sourceFile][contractName]);
+    }
+
+    const filterObject = (obj, prefix) =>
+      Object.keys(obj).reduce((val, key) => {
+        const oSelector = prefix ? `${prefix}.${key}` : key;
+        console.log(oSelector, prefix, key);
+
+        if (outputSelection.some(s => s.startsWith(oSelector))) {
+          if (outputSelection.includes(oSelector)) {
+            val[key] = obj[key];
+          } else if (typeof obj[key] === 'object') {
+            val[key] = filterObject(obj[key], oSelector);
+          } else {
+            val[key] = obj[key];
+          }
+        }
+
+        return val;
+      }, {});
+
+    return filterObject(output);
   }
 
   /**
