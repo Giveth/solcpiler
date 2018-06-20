@@ -471,7 +471,6 @@ class Solcpiler {
     const filterObject = (obj, prefix) =>
       Object.keys(obj).reduce((val, key) => {
         const oSelector = prefix ? `${prefix}.${key}` : key;
-        console.log(oSelector, prefix, key);
 
         if (outputSelection.some(s => s.startsWith(oSelector))) {
           if (outputSelection.includes(oSelector)) {
