@@ -53,7 +53,7 @@ module.exports.default = class SolcpilerArtifactAdapter extends AbstractArtifact
           }
 
           sourceCodes[source.id] = this.sources[sourceFile];
-          sources[source.id] = sourceFile;
+          sources[source.id] = path.isAbsolute(sourceFile) || sourceFile.startsWith('.') ? sourceFile : source.file;
         });
 
         contracts.push({
