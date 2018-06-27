@@ -30,13 +30,12 @@ module.exports.default = class SolcpilerArtifactAdapter extends AbstractArtifact
     const contracts = [];
     globby.sync(path.join(this.artifactsPath, '*.json')).forEach((file) => {
       const {
-        contractName,
         compilerOutput,
-        source,
+        source: artifactSource,
         sources: artifactSources,
       } = require(require.resolve(file, { paths: [process.cwd()] }));
 
-      if (this.excludes.some(p => p.test(source))) return;
+      if (this.excludes.some(p => p.test(artifactSource))) return;
 
       if (compilerOutput.abi && compilerOutput.evm.bytecode.object.length > 0) {
         const sourceCodes = [];
