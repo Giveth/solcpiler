@@ -19,7 +19,7 @@
     "lodash": "^4.17.4",
     "mkdirp": "^0.5.1",
     "solc": "^0.4.24",
-    "web3-utils": "^1.0.0-beta.34",
+    "web3-utils": "^1.0.0-beta.30",
     "yargs": "^8.0.2"
   },
   "repository": {
