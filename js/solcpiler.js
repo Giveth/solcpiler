@@ -238,6 +238,13 @@ class Solcpiler {
       this.resolveImportsFromFile(f).forEach(addContract);
     });
 
+    // delete source urls if useLiteralContent is true
+    // the urls are deleted afterwards instead of simply not being added as they
+    // are used for
+    if (standardInput.settings.metadata.useLiteralContent) {
+      Object.keys(standardInput.sources).forEach(source => delete standardInput.sources[source].urls);
+    }
+
     this.standardInput = standardInput;
   }
 
