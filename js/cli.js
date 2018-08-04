@@ -30,6 +30,12 @@ const yargs = require('yargs')
     describe: 'Create directory if not exist. Default: true. Use --no-createdir to not create a directory',
     type: 'boolean',
   })
+  .option('insert-file-names', {
+    describe: 'Insert original file names in the resulting concatenate files. ' +
+      'Use \'imports\' to only insert name in files with imports. Default: all',
+    choices: ['all', 'none', 'imports'],
+    default: 'all'
+  })
   .option('quiet', {
     alias: 'q',
     describe: 'Silence output and compiler warnings. Default: false',
@@ -50,7 +56,7 @@ if (yargs.help === true) {
 }
 */
 
-const optsCommandLine = {};
+const optsCommandLine = {insertFileNames: yargs.insertFileNames};
 
 if (yargs.outputJsDir) optsCommandLine.outputJsDir = yargs.outputJsDir;
 if (yargs.outputSolDir) optsCommandLine.outputSolDir = yargs.outputSolDir;
@@ -69,4 +75,3 @@ api.runFromConfigFile(configFile, optsCommandLine, (err) => {
     console.error("ERROR:", err);
   }
 });
-
