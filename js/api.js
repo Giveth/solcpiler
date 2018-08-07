@@ -108,7 +108,7 @@ if (fs.existsSync('./contracts')) {
 const runFromConfigFile = (configFile, overloadOpts, cb) => {
   readConfigFile(configFile, (err, optsFile) => {
     if (err) return cb();
-    if (optsFile.insertFileNames && ['all', 'none', 'imports'].indexOf(optsFile.insertFileNames) > -1) return cb();
+    if (optsFile.insertFileNames && ['all', 'none', 'imports'].includes(optsFile.insertFileNames)) return cb();
     const opts = Object.assign(optsDefault, optsFile, overloadOpts);
     run(opts, cb);
     return null;
