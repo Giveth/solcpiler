@@ -381,6 +381,7 @@ class Solcpiler {
   generateFiles(output, sourceFile) {
     const contractFiles = this.resolveImportsFromFile(sourceFile);
     contractFiles.push(sourceFile);
+    const hasImports = contractFiles.length > 1;
 
     const sources = contractFiles
       .map(f => (output.contracts[f] ? f : this.remappings[f]))
@@ -423,7 +424,7 @@ class Solcpiler {
       .replace('.sol', '');
 
     // generate _all.sol file
-    const r = /^import *"(.*)";/gm;
+    const r = /^import *"(.*)";\n/gm;
 
     let sol = '';
     contractFiles.forEach((c) => {
@@ -433,7 +434,15 @@ class Solcpiler {
         contract = this.sources[c] || this.importSources[c];
       }
 
-      sol += `\n\n///File: ${c}\n\n${contract.replace(r, '')}`;
+      let prefix;
+      let suffix;
+      if (this.opts.insertFileNames == 'all' || (hasImports && this.opts.insertFileNames == 'imports')) {
+        prefix = `/* file: ${c} */\n`;
+        suffix = `\n/* eof (${c}) */`
+      } else  {
+        prefix = suffix = '';
+      }
+      sol += `${prefix}${contract.replace(r, '')}${suffix}\n`;
     });
 
     fs.writeFileSync(path.join(this.opts.outputSolDir, `${contractFileName}_all.sol`), sol);
