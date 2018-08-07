@@ -718,7 +718,10 @@ class Solcpiler {
     const v = this.opts.solcVersion.startsWith('v')
       ? this.opts.solcVersion.slice(1)
       : this.opts.solcVersion;
-    if (this.solc.version().startsWith(v)) return;
+    if (this.solc.version().startsWith(v)) {
+      this.compiledSolcVersion = this.solc.version();
+      return Promise.resolve();
+    }
 
     if (!this.opts.quiet) console.log('setting solc version', this.opts.solcVersion, '\n');
 
