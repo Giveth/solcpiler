@@ -241,7 +241,7 @@ class Solcpiler {
 
     // delete source urls if useLiteralContent is true
     // the urls are deleted afterwards instead of simply not being added as they
-    // are used for
+    // are used for determining any remappings
     if (standardInput.settings.metadata.useLiteralContent) {
       Object.keys(standardInput.sources).forEach(source => delete standardInput.sources[source].urls);
     }
