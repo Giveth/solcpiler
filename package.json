@@ -18,6 +18,7 @@
     "globby": "^8.0.1",
     "lodash": "^4.17.4",
     "mkdirp": "^0.5.1",
+    "solc": "^0.4.24",
     "web3-utils": "^1.0.0-beta.30",
     "yargs": "^8.0.2"
   },
@@ -31,7 +32,6 @@
     "eslint-config-airbnb": "^16.1.0",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-jsx-a11y": "^6.0.2",
-    "eslint-plugin-react": "^7.4.0",
-    "solc": "^0.4.21"
+    "eslint-plugin-react": "^7.4.0"
   }
 }
