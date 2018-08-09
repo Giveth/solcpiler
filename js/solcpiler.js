@@ -445,12 +445,17 @@ class Solcpiler {
       let suffix;
       if (this.opts.insertFileNames == 'all' || (hasImports && this.opts.insertFileNames == 'imports')) {
         prefix = `/* file: ${c} */\n`;
-        suffix = `\n/* eof (${c}) */`
+        suffix = `\n/* eof (${c}) */\n`
       } else  {
-        prefix = suffix = '';
+        prefix = '';
+        suffix = hasImports ? '\n' : '';
       }
-      sol += `${prefix}${contract.replace(r, '')}${suffix}\n`;
+      sol += `${prefix}${contract.replace(r, '')}${suffix}`;
     });
+    // Remove trailing newline inserted when not including file names and the original file has imports.
+    if (hasImports && this.opts.insertFileNames == 'none' && sol.endsWith('\n\n')) {
+      sol = sol.slice(0, -1);
+    }
 
     fs.writeFileSync(path.join(this.opts.outputSolDir, `${contractFileName}_all.sol`), sol);
   }
